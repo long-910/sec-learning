@@ -33,7 +33,33 @@ function saveState(){
 }
 function clearState(){ if(!PERSIST) return; try{ localStorage.removeItem(SKEY); }catch(e){} }
 
+// ---- lazy set loading ----
+function _showLoadingMsg(i){
+  $("quiz").style.display="none";
+  $("resultsView").classList.remove("show");
+  $("dashView").classList.remove("show");
+  let lm=document.getElementById("_lm");
+  if(!lm){
+    lm=document.createElement("div"); lm.id="_lm"; lm.className="card";
+    lm.style.cssText="text-align:center;padding:40px 0;margin-top:8px";
+    const quiz=$("quiz"); quiz.parentNode.insertBefore(lm,quiz);
+  }
+  lm.style.display="block";
+  lm.innerHTML=`<div class="clocklbl" style="font-size:13px;color:var(--muted)">セット ${i+1} を読み込み中...</div>`;
+  return lm;
+}
+
 function loadSet(i){
+  if(ALL_SETS[i]){ _doLoadSet(i); return; }
+  const lm=_showLoadingMsg(i);
+  const s=document.createElement("script");
+  s.src="set-"+i+".js";
+  s.onload=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+  s.onerror=()=>{ lm.innerHTML=`<div class="clocklbl" style="color:var(--no)">セット ${i+1} の読み込みに失敗しました</div>`; };
+  document.head.appendChild(s);
+}
+
+function _doLoadSet(i){
   pauseTimer();
   setIdx=i;
   const st=loadState();
@@ -59,9 +85,15 @@ function loadSet(i){
   renderSets(); render(); saveState();
 }
 
+// ---- cross-set progress helpers ----
 function getSetProgress(i,st){
   const ss=st&&st.sets&&st.sets[i];
   if(!ss||!ss.answers||!ss.perms) return null;
+  // Set data not yet loaded: report answered count only, correct is unknown
+  if(!ALL_SETS[i]){
+    const answered=ss.answers.filter(x=>x!==null).length;
+    return {answered, correct:null, total:ss.answers.length};
+  }
   const total=ALL_SETS[i].length; let answered=0,correct=0;
   ss.answers.forEach((sel,j)=>{
     if(sel===null) return; answered++;
@@ -72,9 +104,11 @@ function getSetProgress(i,st){
 function getAllProgress(){
   const st=loadState();
   let totalAnswered=0,totalCorrect=0;
-  const totalQ=ALL_SETS.reduce((s,a)=>s+a.length,0);
+  // Use 125 as fallback question count for unloaded sets
+  const totalQ=ALL_SETS.reduce((s,a)=>s+(a?a.length:125),0);
   const domMap={};
   ALL_SETS.forEach((set,i)=>{
+    if(!set) return; // skip unloaded sets
     const ss=st&&st.sets&&st.sets[i];
     set.forEach((q,j)=>{
       if(!domMap[q.d]) domMap[q.d]={ok:0,ans:0,total:0};
@@ -106,13 +140,13 @@ function renderDashboard(){
   const ds=$("dash-sets"); ds.innerHTML="";
   ALL_SETS.forEach((set,i)=>{
     const p=getSetProgress(i,st);
-    const pct=p&&p.answered?Math.round(p.correct/p.answered*100):null;
-    const done=p&&p.answered===p.total;
+    const pct=(p&&p.answered&&p.correct!==null)?Math.round(p.correct/p.answered*100):null;
+    const done=p&&p.answered>0&&p.answered===p.total;
     const col=pct===null?"var(--muted)":pct>=70?"var(--ok)":pct>=40?"var(--amber)":"var(--no)";
-    const barW=p?Math.round(p.answered/p.total*100):0;
+    const barW=p?Math.round(p.answered/(p.total||125)*100):0;
     const row=document.createElement("div"); row.className="setrow"+(i===setIdx?" cur":"");
     row.innerHTML=`<span class="sr-name">セット ${i+1}${done?" ✓":""}</span>`
-      +`<span class="sr-prog">${p?(p.answered+"/"+p.total):"未開始"}</span>`
+      +`<span class="sr-prog">${p?(p.answered+"/"+(p.total||"?")):"未開始"}</span>`
       +`<span class="sr-bar"><i style="width:${barW}%;background:${col}"></i></span>`
       +`<span class="sr-pct" style="color:${col}">${pct!==null?pct+"%":"—"}</span>`;
     row.onclick=()=>{
@@ -141,11 +175,13 @@ function renderSets(){
     const b=document.createElement("button");
     b.className="setbtn"+(i===setIdx?" active":"");
     const p=getSetProgress(i,st);
-    const done=p&&p.answered===p.total;
+    const done=p&&p.answered>0&&p.answered===p.total;
     let label="セット "+(i+1);
     if(p){
-      if(done){ const pct=p.answered?Math.round(p.correct/p.answered*100):0; label+=" ✓ "+pct+"%"; }
-      else { label+=" · "+p.answered+"/"+p.total; }
+      if(done){
+        const pct=(p.correct!==null&&p.answered)?Math.round(p.correct/p.answered*100):null;
+        label+=" ✓"+(pct!==null?" "+pct+"%":"");
+      } else { label+=" · "+p.answered+"/"+(p.total||"?"); }
     }
     b.textContent=label;
     b.onclick=()=>{
@@ -367,7 +403,9 @@ function downloadHtml(){
   const a=document.createElement("a");
   a.href=url; a.download="セキュリティ勉強_結果_セット"+(setIdx+1)+"_"+ds+".html";
   document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(()=>URL.revokeObjectURL(url),1500);
+  // Use onafterprint-style cleanup: revoke after a safe delay
+  window.addEventListener("focus", function revokeOnce(){ URL.revokeObjectURL(url); window.removeEventListener("focus", revokeOnce); }, {once:true});
+  setTimeout(()=>URL.revokeObjectURL(url), 60000);
 }
 $("toHtml").onclick=downloadHtml;
 
@@ -397,7 +435,7 @@ if(_st){ $("resumeNote").style.display="block"; }
 // Password gate: SHA-256 check + brute-force lockout (5 attempts → 30s lock)
 (function(){
   const H='39e18a493b913441c12fac89a09f24958e5da0ff6f3300c80c5359f36e3223aa';
-  const SK='_sq_v2'; // session token key
+  const SK='_sq_v2';
   const MAX_ATTEMPTS=5; const LOCK_MS=30000;
   const ov=document.getElementById('pwOverlay');
   async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return Array.from(new Uint8Array(b)).map(x=>x.toString(16).padStart(2,'0')).join('');}
