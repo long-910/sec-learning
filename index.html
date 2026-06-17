@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="theme.js"></script>
 <style>
   :root{
     --bg:#0c1016; --panel:#141a23; --panel-2:#1b232f; --line:#26303d;
@@ -17,6 +18,16 @@
     --sans:'Inter',system-ui,-apple-system,'Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;
     --disp:'Space Grotesk',var(--sans);
   }
+  [data-theme="light"]{
+    --bg:#f0f4f8; --panel:#ffffff; --panel-2:#e8edf3; --line:#c8d3e0;
+    --txt:#1e2a3a; --muted:#5a6a7e; --amber:#b45309; --cyan:#1a8f8d;
+    --ok:#15803d; --no:#c4302b;
+  }
+  [data-theme="light"] body{background:radial-gradient(1200px 600px at 80% -10%,rgba(26,143,141,.07),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(180,83,9,.05),transparent 55%),var(--bg)}
+  [data-theme="light"] .setbtn.active,[data-theme="light"] .revtoggle .btn.on{color:#fff}
+  [data-theme="light"] .btn.primary,[data-theme="light"] #pwBtn{color:#fff}
+  [data-theme="light"] .cell.ok{color:#166534}
+  [data-theme="light"] .cell.no{color:#9b1c1c}
   *{box-sizing:border-box}
   html,body{margin:0;padding:0}
   body{background:radial-gradient(1200px 600px at 80% -10%,rgba(91,192,190,.07),transparent 60%),radial-gradient(900px 500px at -10% 110%,rgba(255,180,84,.06),transparent 55%),var(--bg);color:var(--txt);font-family:var(--sans);line-height:1.6;min-height:100vh}
@@ -180,6 +191,7 @@
     <button class="tbtn" id="tReset">タイマーリセット</button>
     <div class="tspacer"></div>
     <span class="clocklbl" id="tState">未開始</span>
+    <button class="tbtn" id="themeToggle">ライト</button>
   </div>
 
   <div class="scorebar">

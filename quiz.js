@@ -432,6 +432,19 @@ loadSet(_st&&typeof _st.current==="number"?_st.current:0);
 updateClock();
 if(_st){ $("resumeNote").style.display="block"; }
 
+// Dark / light mode toggle
+(function(){
+  const TKEY='_sq_theme';
+  const btn=document.getElementById('themeToggle');
+  function applyTheme(t){
+    if(t==='light'){document.documentElement.setAttribute('data-theme','light');btn.textContent='ダーク';}
+    else{document.documentElement.removeAttribute('data-theme');btn.textContent='ライト';}
+    localStorage.setItem(TKEY,t);
+  }
+  btn.onclick=function(){applyTheme(document.documentElement.getAttribute('data-theme')==='light'?'dark':'light');};
+  btn.textContent=document.documentElement.getAttribute('data-theme')==='light'?'ダーク':'ライト';
+})();
+
 // Password gate: SHA-256 check + brute-force lockout (5 attempts → 30s lock)
 (function(){
   const H='39e18a493b913441c12fac89a09f24958e5da0ff6f3300c80c5359f36e3223aa';
