@@ -110,6 +110,17 @@
   .revitem .ra b{color:var(--txt)}
   .revitem .re{margin-top:7px;border-left:3px solid var(--amber);padding:7px 11px;color:var(--txt);background:rgba(255,180,84,.06);border-radius:0 8px 8px 0}
 
+  /* dashboard */
+  .dash{display:none;margin-top:8px}
+  .dash.show{display:block}
+  .setrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);cursor:pointer;transition:.1s}
+  .setrow:hover .sr-name,.setrow.cur .sr-name{color:var(--cyan)}
+  .setrow .sr-name{font-family:var(--mono);font-size:13px;min-width:66px;transition:.1s}
+  .setrow .sr-prog{font-family:var(--mono);font-size:12px;color:var(--muted);min-width:62px}
+  .setrow .sr-bar{flex:1;height:5px;background:var(--panel-2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .setrow .sr-bar i{display:block;height:100%;border-radius:99px;transition:width .3s}
+  .setrow .sr-pct{font-family:var(--mono);font-size:12px;font-weight:700;min-width:56px;text-align:right}
+
   /* print / PDF */
   #printArea{display:none}
   @media print{
@@ -181,6 +192,7 @@
   <div class="controls">
     <select id="filter"></select>
     <div class="spacer"></div>
+    <button class="btn" id="toDash">全体ダッシュボード</button>
     <button class="btn" id="toResults">結果を見る</button>
     <button class="btn ghost" id="reset">解答リセット</button>
     <button class="btn ghost" id="clearSave">保存をクリア</button>
@@ -225,6 +237,24 @@
         <button class="btn ghost" id="revAll">全問表示</button>
       </div>
       <div id="reviewList"></div>
+    </div>
+  </div>
+
+  <div class="dash" id="dashView">
+    <div class="card">
+      <div class="qhead"><span class="tag">DASHBOARD</span><span class="tag">全セット進捗</span></div>
+      <div class="scorebar">
+        <div class="stat"><div class="k">解答済（全体）</div><div class="v am" id="dash-total">—</div></div>
+        <div class="stat"><div class="k">正解（全体）</div><div class="v ok" id="dash-correct">—</div></div>
+        <div class="stat"><div class="k">正答率（全体）</div><div class="v" id="dash-rate">—</div></div>
+      </div>
+      <h3 style="font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin:20px 0 10px">セット別進捗（クリックで移動）</h3>
+      <div id="dash-sets"></div>
+      <h3 style="font-family:var(--mono);font-size:12px;letter-spacing:.1em;color:var(--muted);text-transform:uppercase;margin:22px 0 10px">ドメイン別正答率（全セット横断 · 正答率昇順）</h3>
+      <div id="dash-domains"></div>
+      <div class="controls" style="margin:18px 0 0">
+        <button class="btn" id="backFromDash">← 問題に戻る</button>
+      </div>
     </div>
   </div>
 
@@ -274,8 +304,8 @@ function saveState(){
 function clearState(){ if(!PERSIST) return; try{ localStorage.removeItem(SKEY); }catch(e){} }
 
 function loadSet(i){
-  setIdx=i;
   pauseTimer();
+  setIdx=i;
   const st=loadState();
   const ss=st&&st.sets&&st.sets[i];
   if(ss&&ss.perms&&ss.perms.length===ALL_SETS[i].length){
@@ -295,17 +325,105 @@ function loadSet(i){
   }
   updateClock();
   buildFilter(); $("filter").value=filter; buildView();
-  $("resultsView").classList.remove("show"); $("quiz").style.display="block";
+  $("resultsView").classList.remove("show"); $("dashView").classList.remove("show"); $("quiz").style.display="block";
   renderSets(); render(); saveState();
+}
+
+// ---- cross-set progress helpers ----
+function getSetProgress(i,st){
+  const ss=st&&st.sets&&st.sets[i];
+  if(!ss||!ss.answers||!ss.perms) return null;
+  const total=ALL_SETS[i].length; let answered=0,correct=0;
+  ss.answers.forEach((sel,j)=>{
+    if(sel===null) return; answered++;
+    if(j<ss.perms.length){ const ci=ss.perms[j].indexOf(ALL_SETS[i][j].a); if(sel===ci) correct++; }
+  });
+  return {answered,correct,total};
+}
+function getAllProgress(){
+  const st=loadState();
+  let totalAnswered=0,totalCorrect=0;
+  const totalQ=ALL_SETS.reduce((s,a)=>s+a.length,0);
+  const domMap={};
+  ALL_SETS.forEach((set,i)=>{
+    const ss=st&&st.sets&&st.sets[i];
+    set.forEach((q,j)=>{
+      if(!domMap[q.d]) domMap[q.d]={ok:0,ans:0,total:0};
+      domMap[q.d].total++;
+      if(!ss||!ss.answers) return;
+      const sel=ss.answers[j];
+      if(sel===null||sel===undefined) return;
+      domMap[q.d].ans++; totalAnswered++;
+      if(ss.perms&&j<ss.perms.length){ const ci=ss.perms[j].indexOf(set[j].a); if(sel===ci){domMap[q.d].ok++;totalCorrect++;} }
+    });
+  });
+  return {totalAnswered,totalCorrect,totalQ,domMap};
+}
+function showDashboard(){
+  $("quiz").style.display="none";
+  $("resultsView").classList.remove("show");
+  $("dashView").classList.add("show");
+  window.scrollTo({top:0,behavior:'smooth'});
+  renderDashboard();
+}
+function renderDashboard(){
+  const all=getAllProgress();
+  const rate=all.totalAnswered?Math.round(all.totalCorrect/all.totalAnswered*100):null;
+  $("dash-total").innerHTML=all.totalAnswered+'<span style="font-size:14px;color:var(--muted)">/' +all.totalQ+'</span>';
+  $("dash-correct").textContent=all.totalCorrect;
+  $("dash-rate").textContent=rate!==null?rate+"%":"—";
+  $("dash-rate").style.color=rate===null?"var(--txt)":rate>=70?"var(--ok)":rate>=40?"var(--amber)":"var(--no)";
+  const st=loadState();
+  const ds=$("dash-sets"); ds.innerHTML="";
+  ALL_SETS.forEach((set,i)=>{
+    const p=getSetProgress(i,st);
+    const pct=p&&p.answered?Math.round(p.correct/p.answered*100):null;
+    const done=p&&p.answered===p.total;
+    const col=pct===null?"var(--muted)":pct>=70?"var(--ok)":pct>=40?"var(--amber)":"var(--no)";
+    const barW=p?Math.round(p.answered/p.total*100):0;
+    const row=document.createElement("div"); row.className="setrow"+(i===setIdx?" cur":"");
+    row.innerHTML=`<span class="sr-name">セット ${i+1}${done?" ✓":""}</span>`
+      +`<span class="sr-prog">${p?(p.answered+"/"+p.total):"未開始"}</span>`
+      +`<span class="sr-bar"><i style="width:${barW}%;background:${col}"></i></span>`
+      +`<span class="sr-pct" style="color:${col}">${pct!==null?pct+"%":"—"}</span>`;
+    row.onclick=()=>{
+      if(i!==setIdx&&running&&!confirm("タイマーが計測中です。セットを切り替えますか？\n（現在の進捗は保存されています）")) return;
+      $("dashView").classList.remove("show");
+      if(i!==setIdx) loadSet(i); else { $("quiz").style.display="block"; render(); }
+    };
+    ds.appendChild(row);
+  });
+  const dd=$("dash-domains"); dd.innerHTML="";
+  Object.entries(all.domMap).sort((a,b)=>{
+    const pa=a[1].ans?a[1].ok/a[1].ans:1; const pb=b[1].ans?b[1].ok/b[1].ans:1; return pa-pb;
+  }).forEach(([d,r])=>{
+    const pct=r.ans?Math.round(r.ok/r.ans*100):null;
+    const col=pct===null?"var(--muted)":pct>=70?"var(--ok)":pct>=40?"var(--amber)":"var(--no)";
+    const row=document.createElement("div"); row.className="domrow";
+    row.innerHTML=`<span class="dn">${d}</span><span class="db"><i style="width:${pct||0}%;background:${col}"></i></span><span class="ds" style="color:${col};min-width:80px">${r.ok}/${r.ans||0}${pct!==null?" · "+pct+"%":""}</span>`;
+    dd.appendChild(row);
+  });
 }
 
 function renderSets(){
   const c=$("sets"); c.innerHTML="";
+  const st=loadState();
   ALL_SETS.forEach((s,i)=>{
     const b=document.createElement("button");
     b.className="setbtn"+(i===setIdx?" active":"");
-    b.textContent="セット "+(i+1);
-    b.onclick=()=>{ if(i!==setIdx) loadSet(i); };
+    const p=getSetProgress(i,st);
+    const done=p&&p.answered===p.total;
+    let label="セット "+(i+1);
+    if(p){
+      if(done){ const pct=p.answered?Math.round(p.correct/p.answered*100):0; label+=" ✓ "+pct+"%"; }
+      else { label+=" · "+p.answered+"/"+p.total; }
+    }
+    b.textContent=label;
+    b.onclick=()=>{
+      if(i===setIdx) return;
+      if(running&&!confirm("タイマーが計測中です。セットを切り替えますか？\n（現在の進捗は保存されています）")) return;
+      loadSet(i);
+    };
     c.appendChild(b);
   });
 }
@@ -427,12 +545,14 @@ function showResults(timeUp){
     row.innerHTML=`<span class="dn">${r.d}</span><span class="db"><i style="width:${r.pct}%;background:${col}"></i></span><span class="ds">${r.ok}/${r.total}</span>`;
     ds.appendChild(row);
   });
-  $("quiz").style.display="none"; $("resultsView").classList.add("show");
+  $("quiz").style.display="none"; $("dashView").classList.remove("show"); $("resultsView").classList.add("show");
   renderReview();
   window.scrollTo({top:0,behavior:'smooth'});
 }
 $("toResults").onclick=()=>showResults(false);
 $("backToQuiz").onclick=()=>{ $("resultsView").classList.remove("show"); $("quiz").style.display="block"; render(); };
+$("toDash").onclick=showDashboard;
+$("backFromDash").onclick=()=>{ $("dashView").classList.remove("show"); $("quiz").style.display="block"; render(); };
 
 // ---- detailed review (on screen) ----
 function escapeHtml(s){ return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;"); }
@@ -512,7 +632,7 @@ $("toHtml").onclick=downloadHtml;
 function resetAnswers(){
   answers=new Array(Q.length).fill(null); filter="all"; pos=0;
   buildFilter(); $("filter").value=filter; buildView();
-  $("resultsView").classList.remove("show"); $("quiz").style.display="block"; saveState(); render();
+  $("resultsView").classList.remove("show"); $("dashView").classList.remove("show"); $("quiz").style.display="block"; saveState(); render();
 }
 $("reset").onclick=resetAnswers; $("reset2").onclick=resetAnswers;
 $("clearSave").onclick=()=>{
@@ -523,7 +643,7 @@ $("clearSave").onclick=()=>{
   pauseTimer(); remaining=EXAM_SECONDS; startedOnce=false; filter="all"; pos=0;
   updateClock(); $("tState").textContent="未開始";
   buildFilter(); $("filter").value=filter; buildView();
-  $("resultsView").classList.remove("show"); $("quiz").style.display="block"; render(); saveState();
+  $("resultsView").classList.remove("show"); $("dashView").classList.remove("show"); $("quiz").style.display="block"; render(); saveState();
 };
 window.addEventListener("beforeunload", saveState);
 
