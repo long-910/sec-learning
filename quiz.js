@@ -17,7 +17,7 @@ let running = false;
 let startedOnce = false;
 
 function makePerm(){ const p=[0,1,2,3]; for(let i=3;i>0;i--){const j=Math.floor(Math.random()*(i+1));[p[i],p[j]]=[p[j],p[i]];} return p; }
-function applyPerm(qsrc,p){ const o=p.map(i=>qsrc.o[i]); const a=p.indexOf(qsrc.a); return {d:qsrc.d,q:qsrc.q,o:o,a:a,e:qsrc.e}; }
+function applyPerm(qsrc,p){ const o=p.map(i=>qsrc.o[i]); const a=p.indexOf(qsrc.a); const r={d:qsrc.d,q:qsrc.q,o:o,a:a,e:qsrc.e}; if(qsrc.oe) r.oe=p.map(i=>qsrc.oe[i]); return r; }
 
 function storageOK(){ try{ const k="__t"; localStorage.setItem(k,"1"); localStorage.removeItem(k); return true; }catch(e){ return false; } }
 const PERSIST = storageOK();
@@ -49,18 +49,17 @@ function _showLoadingMsg(i){
   return lm;
 }
 
+function _loadOE(i,cb){
+  if(window.ALL_OE && ALL_OE[i]){ cb(); return; }
+  const oes=document.createElement("script"); oes.src="set-"+i+"-oe.js";
+  oes.onload=cb; oes.onerror=cb; document.head.appendChild(oes);
+}
+
 function loadSet(i){
-  if(ALL_SETS[i]){ _mergeOE(i); _doLoadSet(i); return; }
+  if(ALL_SETS[i]){ _loadOE(i,()=>{ _mergeOE(i); _doLoadSet(i); }); return; }
   const lm=_showLoadingMsg(i);
-  const s=document.createElement("script");
-  s.src="set-"+i+".js";
-  s.onload=()=>{
-    const oes=document.createElement("script");
-    oes.src="set-"+i+"-oe.js";
-    oes.onload=()=>{ _mergeOE(i); lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
-    oes.onerror=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
-    document.head.appendChild(oes);
-  };
+  const s=document.createElement("script"); s.src="set-"+i+".js";
+  s.onload=()=>{ _loadOE(i,()=>{ _mergeOE(i); lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); }); };
   s.onerror=()=>{ lm.innerHTML=`<div class="clocklbl" style="color:var(--no)">セット ${i+1} の読み込みに失敗しました</div>`; };
   document.head.appendChild(s);
 }
