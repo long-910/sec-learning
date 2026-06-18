@@ -76,7 +76,9 @@
   .qtext{font-size:17px;font-weight:500;margin:2px 0 16px;line-height:1.55}
   .qtext code{font-family:var(--mono);background:var(--panel-2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:.9em;color:var(--amber)}
   .opts{display:flex;flex-direction:column;gap:9px}
-  .opt{display:flex;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--txt);font-family:var(--sans);font-size:15px;cursor:pointer;transition:.13s}
+  .opt{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-start;text-align:left;width:100%;background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:12px 14px;color:var(--txt);font-family:var(--sans);font-size:15px;cursor:pointer;transition:.13s}
+  .opt .opt-label{flex:1}
+  .opt-exp{width:100%;font-size:12.5px;color:var(--muted);margin-top:6px;padding-top:6px;border-top:1px solid rgba(128,128,128,.2);line-height:1.5;}
   .opt:hover:not([disabled]){border-color:var(--cyan);transform:translateX(2px)}
   .opt[disabled]{cursor:default}
   .opt .key{font-family:var(--mono);font-weight:700;color:var(--muted);min-width:18px}

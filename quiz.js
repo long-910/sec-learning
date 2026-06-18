@@ -50,13 +50,25 @@ function _showLoadingMsg(i){
 }
 
 function loadSet(i){
-  if(ALL_SETS[i]){ _doLoadSet(i); return; }
+  if(ALL_SETS[i]){ _mergeOE(i); _doLoadSet(i); return; }
   const lm=_showLoadingMsg(i);
   const s=document.createElement("script");
   s.src="set-"+i+".js";
-  s.onload=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+  s.onload=()=>{
+    const oes=document.createElement("script");
+    oes.src="set-"+i+"-oe.js";
+    oes.onload=()=>{ _mergeOE(i); lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+    oes.onerror=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+    document.head.appendChild(oes);
+  };
   s.onerror=()=>{ lm.innerHTML=`<div class="clocklbl" style="color:var(--no)">セット ${i+1} の読み込みに失敗しました</div>`; };
   document.head.appendChild(s);
+}
+
+function _mergeOE(i){
+  if(window.ALL_OE && ALL_OE[i] && ALL_SETS[i]){
+    ALL_SETS[i].forEach((q,k)=>{ if(!q.oe) q.oe=ALL_OE[i][k]; });
+  }
 }
 
 function _doLoadSet(i){
@@ -235,9 +247,16 @@ function render(){
   q.o.forEach((text,idx)=>{
     const b=document.createElement("button"); b.className="opt"; b.type="button";
     const ksp=document.createElement("span"); ksp.className="key"; ksp.textContent=keys[idx];
-    const tsp=document.createElement("span"); tsp.textContent=text;
+    const tsp=document.createElement("span"); tsp.className="opt-label"; tsp.textContent=text;
     b.appendChild(ksp); b.appendChild(tsp);
-    if(chosen!==null){ b.disabled=true; if(idx===q.a) b.classList.add("correct"); else if(idx===chosen) b.classList.add("wrong"); }
+    if(chosen!==null){
+      b.disabled=true;
+      if(idx===q.a) b.classList.add("correct"); else if(idx===chosen) b.classList.add("wrong");
+      if(q.oe && q.oe[idx]){
+        const esp=document.createElement("span"); esp.className="opt-exp"; esp.textContent=q.oe[idx];
+        b.appendChild(esp);
+      }
+    }
     else b.onclick=()=>choose(gi,idx);
     optsEl.appendChild(b);
   });
