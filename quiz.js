@@ -400,7 +400,7 @@ function reportInnerHTML(){
            + `<div>解説: ${escapeHtml(q.e)}</div></div>`;
   });
   if(!items) items = showAll ? "<p>問題がありません。</p>" : "<p>不正解・未解答はありません。全問正解です。</p>";
-  return `<h2>セキュリティ勉強 模擬試験 結果レポート — セット ${setIdx+1}</h2>`
+  return `<h2>セキュリティ学習 結果レポート — セット ${setIdx+1}</h2>`
     + `<div class="meta">日時: ${dstr} ／ 使用時間: ${elapsedStr()} / 4:00:00 ／ スコア: ${ok} / ${Q.length}（解答済 ${ans}問・正答率 ${ans?Math.round(ok/ans*100):0}%）／ 表示範囲: ${showAll?"全問":"不正解・未解答のみ"}</div>`
     + `<table><thead><tr><th>ドメイン</th><th>正解/問題数</th><th>正答率</th></tr></thead><tbody>${domRows}</tbody></table>`
     + `<h3>詳細レビュー（${showAll?"全問":"不正解・未解答"}）</h3>${items}`;
@@ -414,7 +414,7 @@ function downloadHtml(){
     +".wrongq{border:1px solid #ddd;border-radius:8px;padding:9px 12px;margin:9px 0;font-size:13px}.qq{font-weight:600;margin-bottom:4px}"
     +".badge{display:inline-block;border:1px solid #999;border-radius:4px;padding:1px 6px;font-size:11px;margin-right:6px}"
     +"code{font-family:ui-monospace,Menlo,monospace;background:#f2f2f2;border:1px solid #ddd;padding:1px 5px;border-radius:4px;font-size:.9em}";
-  const doc="<!DOCTYPE html><html lang=\"ja\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>セキュリティ勉強 模擬試験 結果レポート</title><style>"+css+"</style></head><body>"+reportInnerHTML()+"</body></html>";
+  const doc="<!DOCTYPE html><html lang=\"ja\"><head><meta charset=\"UTF-8\"><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\"><title>セキュリティ学習 結果レポート</title><style>"+css+"</style></head><body>"+reportInnerHTML()+"</body></html>";
   const blob=new Blob([doc],{type:"text/html;charset=utf-8"});
   const url=URL.createObjectURL(blob);
   const now=new Date(); const ds=now.getFullYear()+String(now.getMonth()+1).padStart(2,"0")+String(now.getDate()).padStart(2,"0")+"_"+String(now.getHours()).padStart(2,"0")+String(now.getMinutes()).padStart(2,"0");
