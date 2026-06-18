@@ -50,13 +50,25 @@ function _showLoadingMsg(i){
 }
 
 function loadSet(i){
-  if(ALL_SETS[i]){ _doLoadSet(i); return; }
+  if(ALL_SETS[i]){ _mergeOE(i); _doLoadSet(i); return; }
   const lm=_showLoadingMsg(i);
   const s=document.createElement("script");
   s.src="set-"+i+".js";
-  s.onload=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+  s.onload=()=>{
+    const oes=document.createElement("script");
+    oes.src="set-"+i+"-oe.js";
+    oes.onload=()=>{ _mergeOE(i); lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+    oes.onerror=()=>{ lm.style.display="none"; $("quiz").style.display="block"; _doLoadSet(i); };
+    document.head.appendChild(oes);
+  };
   s.onerror=()=>{ lm.innerHTML=`<div class="clocklbl" style="color:var(--no)">セット ${i+1} の読み込みに失敗しました</div>`; };
   document.head.appendChild(s);
+}
+
+function _mergeOE(i){
+  if(window.ALL_OE && ALL_OE[i] && ALL_SETS[i]){
+    ALL_SETS[i].forEach((q,k)=>{ if(!q.oe) q.oe=ALL_OE[i][k]; });
+  }
 }
 
 function _doLoadSet(i){
